@@ -15,10 +15,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	// Use whitelist for Auth middleware, allow to interact only with user1 and user2
-	whitelist := []string{"jacox", "user2"}
-	bot.AddMiddleware(tbot.NewAuth(whitelist))
+	
 
 	// Yo handler works without slash, simple text response
 	bot.Handle("yo", "YO!")
