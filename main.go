@@ -1,28 +1,85 @@
 package main
+
 import (
-        "log"
-        "os"
-        "github.com/yanzay/tbot"
+	"log"
+	"os"
+	"time"
+
+	"github.com/yanzay/tbot"
 )
+
 func main() {
-        bot, err := tbot.NewServer(os.Getenv("TELEGRAM_TOKEN"))
-        if err != nil {
-                log.Fatal(err)
-        }
-        bot.Handle("/answer", "42")
-        bot.HandleFunc("/timer {seconds}", timerHandler)
-        bot.ListenAndServe()
+	token := os.Getenv("TELEGRAM_TOKEN")
+	// Create new telegram bot server using token
+	bot, err := tbot.NewServer(token)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Use whitelist for Auth middleware, allow to interact only with user1 and user2
+	whitelist := []string{"yanzay", "user2"}
+	bot.AddMiddleware(tbot.NewAuth(whitelist))
+
+	// Yo handler works without slash, simple text response
+	bot.Handle("yo", "YO!")
+
+	// Handle with HiHandler function
+	bot.HandleFunc("/hi", HiHandler)
+	// Handler can accept varialbes
+	bot.HandleFunc("/say {text}", SayHandler)
+	// Bot can send stickers, photos, music
+	bot.HandleFunc("/sticker", StickerHandler)
+	bot.HandleFunc("/photo", PhotoHandler)
+	bot.HandleFunc("/keyboard", KeyboardHandler)
+
+	// Use file handler to handle user uploads
+	bot.HandleFile(FileHandler)
+
+	// Set default handler if you want to process unmatched input
+	bot.HandleDefault(EchoHandler)
+
+	// Start listening for messages
+	err = bot.ListenAndServe()
+	log.Fatal(err)
 }
-func timerHandler(m *tbot.Message) {
-        // m.Vars contains all variables, parsed during routing
-        secondsStr := m.Vars["seconds"]
-        // Convert string variable to integer seconds value
-        seconds, err := strconv.Atoi(secondsStr)
-        if err != nil {
-                m.Reply("Invalid number of seconds")
-                return
-        }
-        m.Replyf("Timer for %d seconds started", seconds)
-        time.Sleep(time.Duration(seconds) * time.Second)
-        m.Reply("Time out!")
+
+func HiHandler(message *tbot.Message) {
+	// Handler can reply with several messages
+	message.Replyf("Hello, %s!", message.From)
+	time.Sleep(1 * time.Second)
+	message.Reply("What's up?")
+}
+
+func SayHandler(message *tbot.Message) {
+	// Message contain it's varialbes from curly brackets
+	message.Reply(message.Vars["text"])
+}
+
+func EchoHandler(message *tbot.Message) {
+	message.Reply(message.Text())
+}
+
+func StickerHandler(message *tbot.Message) {
+	message.ReplySticker("sticker.png")
+}
+
+func PhotoHandler(message *tbot.Message) {
+	message.ReplyPhoto("photo.jpg", "it's me")
+}
+
+func KeyboardHandler(message *tbot.Message) {
+	buttons := [][]string{
+		{"Some", "Test", "Buttons"},
+		{"Another", "Row"},
+	}
+	message.ReplyKeyboard("Buttons example", buttons)
+}
+
+func FileHandler(message *tbot.Message) {
+	err := message.Download("./uploads")
+	if err != nil {
+		message.Replyf("Error handling file: %q", err)
+		return
+	}
+	message.Reply("Thanks for uploading!")
 }
